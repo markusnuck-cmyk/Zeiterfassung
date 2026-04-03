@@ -295,7 +295,7 @@ export default function App() {
           {mError&&<div style={{color:"#ef4444",fontSize:11,marginBottom:12}}>{mError}</div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <button className="btn" onClick={closeModal} style={{padding:10,borderRadius:8,background:"var(--border)",color:"var(--text-muted)",fontSize:12}}>Abbrechen</button>
-            <button className="btn" onClick={saveEntry} disabled={saving} style={{padding:10,borderRadius:8,background:TYPE_COLORS[mType],color:"#000",fontWeight:700,fontSize:13,opacity:saving?0.6:1}}>
+            <button className="btn" onMouseDown={e=>e.preventDefault()} onClick={saveEntry} disabled={saving} style={{padding:10,borderRadius:8,background:TYPE_COLORS[mType],color:"#000",fontWeight:700,fontSize:13,opacity:saving?0.6:1}}>
               {saving?"Speichert…":isVac&&mDate&&mDateTo&&mDateTo>=mDate?`${daysInRange(mDate,mDateTo).length} Tage`:mHours?`${mHours}h`:"Speichern"}
             </button>
           </div>
