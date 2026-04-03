@@ -1,5 +1,13 @@
-h1,
-p {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-}
+import React, { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+
+import App from './App';
+
+const rootElement = document.getElementById('root');
+const root = createRoot(rootElement);
+
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
