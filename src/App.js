@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const TYPES       = ["work","pause","travel","sick","accident","other","vacation","holiday"];
-const TYPE_LABELS = { work:"Arbeitszeit", pause:"Pause", travel:"Reisezeit", sick:"Krank", accident:"Unfall", other:"Sonstiges", vacation:"Ferien", holiday:"Feiertag" };
-const TYPE_COLORS = { work:"#22c55e", pause:"#f59e0b", travel:"#3b82f6", sick:"#f87171", accident:"#fb923c", other:"#a78bfa", vacation:"#06b6d4", holiday:"#e879f9" };
-const TYPE_ICONS  = { work:"⚒", pause:"⏸", travel:"✈", sick:"🤒", accident:"⚠", other:"📝", vacation:"🏖", holiday:"🎉" };
+const TYPES       = ["work","travel","sick","accident","other","vacation","holiday"];
+const TYPE_LABELS = { work:"Arbeitszeit", travel:"Reisezeit", sick:"Krank", accident:"Unfall", other:"Sonstiges", vacation:"Ferien", holiday:"Feiertag" };
+const TYPE_COLORS = { work:"#22c55e", travel:"#3b82f6", sick:"#f87171", accident:"#fb923c", other:"#a78bfa", vacation:"#06b6d4", holiday:"#e879f9" };
+const TYPE_ICONS  = { work:"⚒", travel:"✈", sick:"🤒", accident:"⚠", other:"📝", vacation:"🏖", holiday:"🎉" };
 const NEEDS_LOC   = new Set(["work","travel"]);
 const NEEDS_NOTE  = new Set(["other"]);
 const ADMIN_PIN   = "4774";
@@ -77,7 +77,6 @@ function saveConfig(c){try{localStorage.setItem("ze_config",JSON.stringify(c));}
 
 const YEAR = new Date().getFullYear();
 const HOLIDAYS = [...getSwissHolidays(YEAR),...getSwissHolidays(YEAR+1)];
-
 export default function App() {
   const [config, setConfig] = useState(loadConfig);
   const [configInput, setConfigInput] = useState({url:"",key:""});
@@ -208,7 +207,6 @@ export default function App() {
   function importCSV(e){ const f=e.target.files[0];if(!f)return; const r=new FileReader();r.onload=async ev=>{const nn=ev.target.result.split(/\r?\n/).map(l=>l.split(",")[0].trim()).filter(n=>n&&!empNames.includes(n));if(!nn.length){alert("Keine neuen Namen.");return;}for(const n of nn)await db.upsert("employees",{name:n},"name");setEmployees(p=>[...p,...nn.map(n=>({name:n,pinHash:null}))]);alert(`${nn.length} importiert.`);};r.readAsText(f);e.target.value=""; }
   function exportCSV(filter){ const rows=["Mitarbeiter,Datum,Typ,Stunden,Arbeitsstelle,Notiz,Feiertag,Geändert von"];const es=filter?entries.filter(e=>e.date===today()):entries;[...es].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{rows.push([e.employee,e.date,TYPE_LABELS[e.type],(e.hours/3600000).toFixed(2),e.location||"–",e.note||"–",e.holidayName||"–",e.editedBy||"–"].join(","));});const blob=new Blob([rows.join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`zeiterfassung_${new Date().toISOString().slice(0,10)}.csv`;a.click(); }
   async function resetAll(){ if(!window.confirm("Alle Einträge löschen?"))return; try{await db.remove("time_entries","id=neq.00000000-0000-0000-0000-000000000000");setEntries([]);}catch(e){alert("Fehler: "+e.message);} }
-
   const css = `
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
     :root{--bg:#f4f5f7;--surface:#fff;--border:#e2e4ea;--hover:#eef0f5;--row:#fafbfc;--row-border:#eef0f5;--weekend:#f0f1f5;--muted-border:#d0d3de;--admin-bg:#fffbeb;--text:#1a1d2e;--text-strong:#0d0f1a;--text-sec:#374151;--text-muted:#6b7280;--text-faint:#9ca3af;--text-ghost:#d1d5db;}
@@ -259,8 +257,8 @@ export default function App() {
           <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:17,color:"var(--text-strong)",marginBottom:4}}>{editId?"Bearbeiten":"Eintragen"}</div>
           <div style={{fontSize:11,color:"var(--text-faint)",marginBottom:16}}>{mEmployee}</div>
           {session?.isAdmin&&<div style={{marginBottom:16}}><div style={{fontSize:10,color:"#f59e0b",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Mitarbeiter</div><select className="sel" value={mEmployee} onChange={e=>setMEmployee(e.target.value)}>{empNames.map(n=><option key={n} value={n}>{n}</option>)}</select></div>}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:5}}>
-            {["work","pause","travel","sick"].map(t=><button key={t} className="type-btn" onClick={()=>setMType(t)} style={{background:mType===t?TYPE_COLORS[t]+"28":"var(--bg)",color:mType===t?TYPE_COLORS[t]:"#888",border:`1px solid ${mType===t?TYPE_COLORS[t]+"60":"var(--border)"}`}}><div style={{fontSize:14,marginBottom:2}}>{TYPE_ICONS[t]}</div><div style={{fontSize:10}}>{TYPE_LABELS[t]}</div></button>)}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:5,marginBottom:5}}>
+            {["work","travel","sick"].map(t=><button key={t} className="type-btn" onClick={()=>setMType(t)} style={{background:mType===t?TYPE_COLORS[t]+"28":"var(--bg)",color:mType===t?TYPE_COLORS[t]:"#888",border:`1px solid ${mType===t?TYPE_COLORS[t]+"60":"var(--border)"}`}}><div style={{fontSize:14,marginBottom:2}}>{TYPE_ICONS[t]}</div><div style={{fontSize:10}}>{TYPE_LABELS[t]}</div></button>)}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:20}}>
             {["accident","other","vacation","holiday"].map(t=><button key={t} className="type-btn" onClick={()=>setMType(t)} style={{background:mType===t?TYPE_COLORS[t]+"28":"var(--bg)",color:mType===t?TYPE_COLORS[t]:"#888",border:`1px solid ${mType===t?TYPE_COLORS[t]+"60":"var(--border)"}`}}><div style={{fontSize:14,marginBottom:2}}>{TYPE_ICONS[t]}</div><div style={{fontSize:10}}>{TYPE_LABELS[t]}</div></button>)}
@@ -291,8 +289,8 @@ export default function App() {
             <div><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Stunden</div><input className="inp" type="text" inputMode="decimal" placeholder="z.B. 8 oder 7.5" value={mHours} onChange={e=>setMHours(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>e.key==="Enter"&&saveEntry()} style={{fontSize:16}}/></div>
           </div>}
           {isHol&&<div style={{marginTop:12,marginBottom:16}}><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Stunden</div><input className="inp" type="text" inputMode="decimal" placeholder="z.B. 8" value={mHours} onChange={e=>setMHours(e.target.value.replace(/[^0-9.]/g,""))} onKeyDown={e=>e.key==="Enter"&&saveEntry()} style={{fontSize:16}}/></div>}
-          {NEEDS_LOC.has(mType)&&<div style={{marginBottom:16}}><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Arbeitsstelle</div><input className="inp" placeholder="z.B. Filiale West …" value={mLocation} onChange={e=>setMLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEntry()}/>{locSugg.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>{locSugg.map(l=>{const lc=locColor(l);return<div key={l} className="sug" onClick={()=>setMLocation(l)} style={{color:lc,background:lc+"15",borderColor:lc+"30"}}>{l}</div>;})}</div>}</div>}
-          {NEEDS_NOTE.has(mType)&&<div style={{marginBottom:16}}><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Was ist es?</div><input className="inp" placeholder="z.B. Arzttermin …" value={mNote} onChange={e=>setMNote(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEntry()}/></div>}
+          {NEEDS_LOC.has(mType)&&<div style={{marginBottom:16}}><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Arbeitsstelle</div><input className="inp" placeholder="z.B. Filiale West …" value={mLocation} onChange={e=>setMLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEntry()} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"/>{locSugg.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>{locSugg.map(l=>{const lc=locColor(l);return<div key={l} className="sug" onClick={()=>setMLocation(l)} style={{color:lc,background:lc+"15",borderColor:lc+"30"}}>{l}</div>;})}</div>}</div>}
+          {NEEDS_NOTE.has(mType)&&<div style={{marginBottom:16}}><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Was ist es?</div><input className="inp" placeholder="z.B. Arzttermin …" value={mNote} onChange={e=>setMNote(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEntry()} autoComplete="off" autoCorrect="off" autoCapitalize="off"/></div>}
           {mError&&<div style={{color:"#ef4444",fontSize:11,marginBottom:12}}>{mError}</div>}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <button className="btn" onClick={closeModal} style={{padding:10,borderRadius:8,background:"var(--border)",color:"var(--text-muted)",fontSize:12}}>Abbrechen</button>
@@ -339,8 +337,7 @@ export default function App() {
       </div>
     );
   }
-
-  if(!config) return(
+if(!config) return(
     <div style={{minHeight:"100vh",background:"var(--bg)",color:"var(--text)",fontFamily:"'DM Mono','Courier New',monospace",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
       <style>{css}</style>
       <div style={{width:"100%",maxWidth:480}}>
