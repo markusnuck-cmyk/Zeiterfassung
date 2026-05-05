@@ -253,20 +253,34 @@ function MonatsblattView({entries, employees}) {
     const de=monthEntries.filter(e=>e.date===d);
     const workMs=de.filter(e=>e.type==="work").reduce((s,e)=>s+e.hours,0);
     const travelMs=de.filter(e=>e.type==="travel").reduce((s,e)=>s+e.hours,0);
-    const otherMs=de.filter(e=>!["work","travel"].includes(e.type)).reduce((s,e)=>s+e.hours,0);
-    const otherLabels=[...new Set(de.filter(e=>!["work","travel"].includes(e.type)).map(e=>e.holidayName||TYPE_LABELS[e.type]))].join(", ");
-    const totalMs=workMs+travelMs;
+    const sickMs=de.filter(e=>e.type==="sick").reduce((s,e)=>s+e.hours,0);
+    const accidentMs=de.filter(e=>e.type==="accident").reduce((s,e)=>s+e.hours,0);
+    const vacationMs=de.filter(e=>e.type==="vacation").reduce((s,e)=>s+e.hours,0);
+    const holidayMs=de.filter(e=>e.type==="holiday").reduce((s,e)=>s+e.hours,0);
+    const otherMs=de.filter(e=>e.type==="other").reduce((s,e)=>s+e.hours,0);
+    const totalMs=workMs+travelMs+sickMs+accidentMs+vacationMs+holidayMs+otherMs;
     const wd=new Date(d+"T12:00:00").getDay();
     const isWeekend=wd===0||wd===6;
     const holiday=HOLIDAYS.find(h=>h.date===d);
     const locations=[...new Set(de.filter(e=>e.location).map(e=>e.location))].join(", ");
-    return{d,workMs,travelMs,otherMs,otherLabels,totalMs,isWeekend,holiday,locations,hasEntries:de.length>0};
+    const hasEntries=de.length>0;
+    return{d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,totalMs,isWeekend,holiday,locations,hasEntries};
   });
 
   const totalWork=days.reduce((s,d)=>s+d.workMs,0);
   const totalTravel=days.reduce((s,d)=>s+d.travelMs,0);
+  const totalSick=days.reduce((s,d)=>s+d.sickMs,0);
+  const totalAccident=days.reduce((s,d)=>s+d.accidentMs,0);
+  const totalVacation=days.reduce((s,d)=>s+d.vacationMs,0);
+  const totalHoliday=days.reduce((s,d)=>s+d.holidayMs,0);
   const totalOther=days.reduce((s,d)=>s+d.otherMs,0);
   const totalAll=days.reduce((s,d)=>s+d.totalMs,0);
+
+  const thStyle=(color)=>({padding:"5px 6px",background:"#f5f6f8",border:"1px solid var(--border)",textAlign:"right",fontSize:9,letterSpacing:".04em",color:color||"var(--text-faint)",textTransform:"uppercase",fontWeight:700});
+  const thStyleL=()=>({padding:"5px 6px",background:"#f5f6f8",border:"1px solid var(--border)",textAlign:"left",fontSize:9,letterSpacing:".04em",color:"var(--text-faint)",textTransform:"uppercase",fontWeight:700});
+  const tdNum=(ms,color)=>(<td style={{padding:"4px 6px",border:"1px solid var(--border)",textAlign:"right",fontSize:11,color:ms>0?color:"#e5e7eb",fontWeight:ms>0?600:400}}>{ms>0?formatHDec(ms):""}</td>);
+  const tdTotal=(ms)=>(<td style={{padding:"4px 6px",border:"1px solid var(--border)",textAlign:"right",fontSize:11,fontWeight:ms>0?700:400,color:ms>0?"var(--text-strong)":"#e5e7eb"}}>{ms>0?formatHDec(ms):""}</td>);
+  const tfNum=(ms,color)=>(<td style={{padding:"6px 6px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,color:ms>0?color:"#ccc",fontWeight:700,borderTop:"2px solid #999",background:"#f5f6f8"}}>{ms>0?formatHDec(ms):"–"}</td>);
 
   return (
     <div>
@@ -301,50 +315,57 @@ function MonatsblattView({entries, employees}) {
         </p>
       </div>
 
-      <table className="print-table" style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginTop:12}}>
+      <table className="print-table" style={{width:"100%",borderCollapse:"collapse",fontSize:11,marginTop:12}}>
         <thead>
           <tr>
-            {[["Datum","left"],["Tag","left"],["Arbeitszeit","right"],["Reisezeit","right"],["Total","right"],["Arbeitsstelle / Bemerkung","left"]].map(([h,a])=>(
-              <th key={h} style={{padding:"7px 10px",background:"#f5f6f8",border:"1px solid var(--border)",textAlign:a,fontSize:10,letterSpacing:".06em",color:"var(--text-faint)",textTransform:"uppercase"}}>{h}</th>
-            ))}
+            <th style={thStyleL()}>Datum</th>
+            <th style={thStyleL()}>Tag</th>
+            <th style={thStyle("#16a34a")}>Arbeit</th>
+            <th style={thStyle("#2563eb")}>Reise</th>
+            <th style={thStyle("#dc2626")}>Krank</th>
+            <th style={thStyle("#ea580c")}>Unfall</th>
+            <th style={thStyle("#0891b2")}>Ferien</th>
+            <th style={thStyle("#a21caf")}>Feiertag</th>
+            <th style={thStyle("#7c3aed")}>Sonstiges</th>
+            <th style={thStyle("var(--text-strong)")}>Total</th>
+            <th style={thStyleL()}>Arbeitsstelle</th>
           </tr>
         </thead>
         <tbody>
-          {days.map(({d,workMs,travelMs,otherMs,otherLabels,totalMs,isWeekend,holiday,locations,hasEntries})=>{
+          {days.map(({d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,totalMs,isWeekend,holiday,locations,hasEntries})=>{
             const rowBg=holiday?"#fdf5ff":isWeekend?"#f7f8fa":hasEntries?"#fff":"#fafbfc";
             const textCol=isWeekend&&!hasEntries?"#bbb":"var(--text)";
             return(
               <tr key={d} style={{background:rowBg}}>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",color:textCol,fontSize:12,fontWeight:hasEntries?500:400}}>{fDateShort(d)}</td>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",color:textCol,fontSize:11}}>
-                  {fWeekday(d)}{holiday?<span style={{marginLeft:6,fontSize:10,color:"#c026d3"}}>🎉 {holiday.name}</span>:null}
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",color:textCol,fontSize:11,fontWeight:hasEntries?500:400}}>{fDateShort(d)}</td>
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",color:textCol,fontSize:11}}>
+                  {fWeekday(d)}{holiday?<span style={{marginLeft:4,fontSize:9,color:"#a21caf"}}>FT</span>:null}
                 </td>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,color:workMs>0?"#16a34a":"#ddd",fontWeight:workMs>0?600:400}}>
-                  {workMs>0?formatHDec(workMs):""}
-                </td>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,color:travelMs>0?"#2563eb":"#ddd",fontWeight:travelMs>0?600:400}}>
-                  {travelMs>0?formatHDec(travelMs):""}
-                </td>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,fontWeight:totalMs>0?700:400,color:totalMs>0?"var(--text-strong)":"#ddd"}}>
-                  {totalMs>0?formatHDec(totalMs):""}
-                  {otherMs>0&&!totalMs?<span style={{color:"#a78bfa",fontSize:10}}>{otherLabels}</span>:null}
-                </td>
-                <td style={{padding:"5px 10px",border:"1px solid var(--border)",fontSize:11,color:"var(--text-sec)"}}>
-                  {locations||(otherMs>0&&!locations?<span style={{color:"#a78bfa"}}>{otherLabels}</span>:"")}
-                </td>
+                {tdNum(workMs,"#16a34a")}
+                {tdNum(travelMs,"#2563eb")}
+                {tdNum(sickMs,"#dc2626")}
+                {tdNum(accidentMs,"#ea580c")}
+                {tdNum(vacationMs,"#0891b2")}
+                {tdNum(holidayMs,"#a21caf")}
+                {tdNum(otherMs,"#7c3aed")}
+                {tdTotal(totalMs)}
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:"var(--text-sec)"}}>{locations}</td>
               </tr>
             );
           })}
         </tbody>
         <tfoot>
-          <tr style={{background:"#f5f6f8",fontWeight:700}}>
-            <td colSpan={2} style={{padding:"8px 10px",border:"1px solid var(--border)",fontSize:12,letterSpacing:".06em"}}>TOTAL</td>
-            <td style={{padding:"8px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:13,color:"#16a34a",borderTop:"2px solid #999"}}>{formatHDec(totalWork)}</td>
-            <td style={{padding:"8px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:13,color:"#2563eb",borderTop:"2px solid #999"}}>{formatHDec(totalTravel)}</td>
-            <td style={{padding:"8px 10px",border:"1px solid var(--border)",textAlign:"right",fontSize:13,color:"var(--text-strong)",borderTop:"2px solid #999"}}>{formatHDec(totalAll)}</td>
-            <td style={{padding:"8px 10px",border:"1px solid var(--border)",fontSize:11,color:"var(--text-faint)"}}>
-              {totalOther>0?`+ ${formatHDec(totalOther)} (Ferien/Krank etc.)`:""}
-            </td>
+          <tr>
+            <td colSpan={2} style={{padding:"6px 6px",border:"1px solid var(--border)",fontSize:11,fontWeight:700,letterSpacing:".06em",borderTop:"2px solid #999",background:"#f5f6f8"}}>TOTAL</td>
+            {tfNum(totalWork,"#16a34a")}
+            {tfNum(totalTravel,"#2563eb")}
+            {tfNum(totalSick,"#dc2626")}
+            {tfNum(totalAccident,"#ea580c")}
+            {tfNum(totalVacation,"#0891b2")}
+            {tfNum(totalHoliday,"#a21caf")}
+            {tfNum(totalOther,"#7c3aed")}
+            <td style={{padding:"6px 6px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,color:"var(--text-strong)",fontWeight:700,borderTop:"2px solid #999",background:"#f5f6f8"}}>{formatHDec(totalAll)}</td>
+            <td style={{padding:"6px 6px",border:"1px solid var(--border)",borderTop:"2px solid #999",background:"#f5f6f8"}}></td>
           </tr>
         </tfoot>
       </table>
