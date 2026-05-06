@@ -236,6 +236,33 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
   );
 });
 
+function MonthSignButton({name, pinHash, year, month, onSign, label="Monat abschliessen & unterzeichnen"}){
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  async function handleSign(){
+    if(pin.length<4){setErr("Mindestens 4 Ziffern.");return;}
+    if(hashPin(pin)!==pinHash){setErr("Falscher PIN.");setPin("");return;}
+    setSaving(true);
+    const ok=await onSign(name,hashPin(pin),year,month);
+    if(ok){setDone(true);}else{setErr("Fehler beim Speichern.");setSaving(false);}
+  }
+  if(done)return<div style={{fontSize:12,color:"#22c55e",padding:"8px 0"}}>✓ Erfolgreich unterzeichnet</div>;
+  return(
+    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+      <input type="password" className="inp" placeholder="PIN zur Bestätigung" value={pin} onChange={e=>setPin(e.target.value)}
+        onKeyDown={e=>e.key==="Enter"&&handleSign()}
+        style={{maxWidth:220,letterSpacing:"0.3em",fontSize:16}}/>
+      <button className="btn" onClick={handleSign} disabled={saving}
+        style={{padding:"8px 18px",borderRadius:8,background:"#22c55e",color:"#000",fontWeight:700,fontSize:12,opacity:saving?0.6:1,whiteSpace:"nowrap"}}>
+        ✍ {label}
+      </button>
+      {err&&<span style={{fontSize:11,color:"#ef4444"}}>{err}</span>}
+    </div>
+  );
+}
+
 function MonatsblattView({entries, employees}) {
   const now = new Date();
   const [selEmp, setSelEmp] = useState(employees[0]?.name||"");
@@ -406,18 +433,21 @@ function App() {
   const [editingEmp, setEditingEmp] = useState(null);
   const [editEmpVal, setEditEmpVal] = useState("");
   const [expandedEmp, setExpandedEmp] = useState(null);
+  const [signoffs, setSignoffs] = useState([]);
   const fileRef = useRef();
 
   const loadData = useCallback(async () => {
     if(!db)return;
     setLoading(true);setSyncErr("");
     try{
-      const [emps,ents]=await Promise.all([
+      const [emps,ents,sigs]=await Promise.all([
         db.query("employees",{select:"*",order:"name.asc"}),
-        db.query("time_entries",{select:"*",order:"date.desc,created_at.desc"})
+        db.query("time_entries",{select:"*",order:"date.desc,created_at.desc"}),
+        db.query("month_signoffs",{select:"*"})
       ]);
       setEmployees(emps.map(e=>({name:e.name,pinHash:e.pin_hash,id:e.id})));
       setEntries(ents.map(e=>({id:e.id,employee:e.employee,date:e.date,type:e.type,hours:e.hours_ms,location:e.location,note:e.note,holidayName:e.holiday_name,editedBy:e.edited_by})));
+      setSignoffs(sigs);
     }catch(e){setSyncErr("Verbindungsfehler: "+e.message);}
     setLoading(false);
   },[config]);
@@ -480,6 +510,35 @@ function App() {
   function empTotals(name,date=null){const t={};TYPES.forEach(k=>{t[k]=0;});empEntries(name,date).forEach(e=>{t[e.type]=(t[e.type]||0)+e.hours;});return t;}
   function empVacDays(name){return entries.filter(e=>e.employee===name&&e.type==="vacation").length;}
   function shiftDate(d){const dt=new Date(selDate+"T12:00:00");dt.setDate(dt.getDate()+d);setSelDate(dt.toISOString().slice(0,10));}
+
+  function getSignoff(name,year,month){return signoffs.find(s=>s.employee===name&&s.year===year&&s.month===month)||null;}
+
+  async function signMonth(name,pinHash,year,month){
+    try{
+      await db.upsert("month_signoffs",{employee:name,year,month,signed_at:new Date().toISOString(),signed_pin_hash:pinHash,status:"signed",admin_edited_at:null,admin_edited_by:null,reconfirmed_at:null},"employee,year,month");
+      const sigs=await db.query("month_signoffs",{select:"*"});
+      setSignoffs(sigs);
+      return true;
+    }catch(e){return false;}
+  }
+
+  async function reopenMonth(name,year,month){
+    try{
+      await db.upsert("month_signoffs",{employee:name,year,month,status:"open",signed_at:null,signed_pin_hash:null,admin_edited_at:new Date().toISOString(),admin_edited_by:"admin",reconfirmed_at:null},"employee,year,month");
+      const sigs=await db.query("month_signoffs",{select:"*"});
+      setSignoffs(sigs);
+      return true;
+    }catch(e){return false;}
+  }
+
+  async function reconfirmMonth(name,pinHash,year,month){
+    try{
+      await db.upsert("month_signoffs",{employee:name,year,month,reconfirmed_at:new Date().toISOString(),signed_pin_hash:pinHash,status:"signed"},"employee,year,month");
+      const sigs=await db.query("month_signoffs",{select:"*"});
+      setSignoffs(sigs);
+      return true;
+    }catch(e){return false;}
+  }
 
   const empNames=employees.map(e=>e.name);
   const filteredEmps=empNames.filter(n=>n.toLowerCase().includes(loginSearch.toLowerCase()));
@@ -676,6 +735,26 @@ function App() {
         {!session.isAdmin&&view==="history"&&<div style={{padding:24}}>
           <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:18,color:"var(--text-strong)",marginBottom:4,letterSpacing:".05em"}}>MEIN VERLAUF</div>
           {(()=>{const vd=empVacDays(session.name);return vd>0&&<div style={{fontSize:12,color:"#06b6d4",marginBottom:14}}>🏖 {vd} Ferientag{vd!==1?"e":""} eingetragen</div>;})()}
+          {(()=>{
+            const now=new Date();
+            const prevMonth=now.getMonth()===0?12:now.getMonth();
+            const prevYear=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+            const sig=getSignoff(session.name,prevYear,prevMonth);
+            const emp=employees.find(e=>e.name===session.name);
+            const MNAMES=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+            const needsReconfirm=sig&&sig.status==="signed"&&sig.admin_edited_at&&!sig.reconfirmed_at;
+            const isSigned=sig&&sig.status==="signed"&&!needsReconfirm;
+            return(<div style={{marginBottom:20,background:isSigned?"#f0fdf4":needsReconfirm?"#fffbeb":"var(--surface)",border:`1px solid ${isSigned?"#22c55e30":needsReconfirm?"#f59e0b40":"var(--border)"}`,borderRadius:12,padding:16}}>
+              <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,color:"var(--text-strong)",marginBottom:6}}>
+                {MNAMES[prevMonth-1]} {prevYear}
+                {isSigned&&<span style={{marginLeft:10,fontSize:11,color:"#22c55e",fontFamily:"monospace",fontWeight:400}}>✓ Unterzeichnet {sig.reconfirmed_at?new Date(sig.reconfirmed_at).toLocaleDateString("de-DE"):new Date(sig.signed_at).toLocaleDateString("de-DE")}</span>}
+                {needsReconfirm&&<span style={{marginLeft:10,fontSize:11,color:"#f59e0b",fontFamily:"monospace",fontWeight:400}}>⚠ Admin hat Änderungen vorgenommen – bitte nochmals bestätigen</span>}
+              </div>
+              {!sig&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={prevYear} month={prevMonth} onSign={signMonth}/>}
+              {needsReconfirm&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={prevYear} month={prevMonth} onSign={reconfirmMonth} label="Nochmals bestätigen"/>}
+              {isSigned&&<div style={{fontSize:11,color:"#16a34a"}}>Dieser Monat ist abgeschlossen und kann nicht mehr geändert werden.</div>}
+            </div>);
+          })()}
           {(()=>{const all=empEntries(session.name);if(!all.length)return<div style={{textAlign:"center",color:"var(--text-ghost)",padding:"40px 0"}}>Noch keine Einträge</div>;
             const byDate={};all.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
             return Object.keys(byDate).sort().reverse().map(date=>{const h=holOnDate(date);return<div key={date} style={{marginBottom:7}}>
@@ -754,7 +833,7 @@ function App() {
         {session.isAdmin&&view==="admin"&&<div style={{padding:24}}>
           <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:20,color:"#f59e0b",letterSpacing:".05em",marginBottom:20}}>⚙ ADMIN</div>
           <div style={{display:"flex",gap:6,marginBottom:24}}>
-            {[["employees","Mitarbeiter"],["export","Export"],["settings","Einstellungen"]].map(([k,l])=>(
+            {[["employees","Mitarbeiter"],["signoffs","Unterschriften"],["export","Export"],["settings","Einstellungen"]].map(([k,l])=>(
               <div key={k} className="atab" onClick={()=>setAdminTab(k)} style={{color:adminTab===k?"#f59e0b":"var(--text-faint)",background:adminTab===k?"var(--admin-bg)":"transparent",borderColor:adminTab===k?"#f59e0b40":"var(--border)"}}>{l}</div>
             ))}
           </div>
@@ -793,6 +872,40 @@ function App() {
                 </div>)}
               </div>
             </div>
+          </div>}
+          {adminTab==="signoffs"&&<div style={{maxWidth:700}}>
+            {(()=>{
+              const now=new Date();
+              const MNAMES=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+              const months=[];
+              for(let i=0;i<3;i++){
+                let m=now.getMonth()-i;let y=now.getFullYear();
+                if(m<0){m+=12;y--;}
+                months.push({year:y,month:m+1,label:MNAMES[m]+" "+y});
+              }
+              return months.map(({year,month,label})=>(
+                <div key={label} style={{marginBottom:20}}>
+                  <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:14,color:"var(--text-strong)",marginBottom:8,paddingBottom:6,borderBottom:"1px solid var(--border)"}}>{label}</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {empNames.map(name=>{
+                      const sig=getSignoff(name,year,month);
+                      const isSigned=sig&&sig.status==="signed"&&!(sig.admin_edited_at&&!sig.reconfirmed_at);
+                      const needsReconfirm=sig&&sig.admin_edited_at&&!sig.reconfirmed_at;
+                      const signedDate=sig&&(sig.reconfirmed_at||sig.signed_at)?new Date(sig.reconfirmed_at||sig.signed_at).toLocaleDateString("de-DE"):"";
+                      return(
+                        <div key={name} style={{display:"flex",alignItems:"center",gap:10,background:"var(--surface)",borderRadius:8,padding:"9px 14px",border:`1px solid ${isSigned?"#22c55e20":needsReconfirm?"#f59e0b30":"var(--border)"}`,borderLeft:`3px solid ${isSigned?"#22c55e":needsReconfirm?"#f59e0b":"var(--muted-border)"}`}}>
+                          <span style={{flex:1,fontSize:13,color:"var(--text-sec)"}}>{name}</span>
+                          {isSigned&&<span style={{fontSize:11,color:"#22c55e"}}>✓ Unterzeichnet {signedDate}</span>}
+                          {needsReconfirm&&<span style={{fontSize:11,color:"#f59e0b"}}>⚠ Wartet auf Bestätigung</span>}
+                          {!sig&&<span style={{fontSize:11,color:"var(--text-ghost)"}}>Offen</span>}
+                          {isSigned&&<button className="btn" onClick={async()=>{if(window.confirm(`Unterschrift von ${name} für ${label} aufheben und zur Korrektur freigeben?`)){await reopenMonth(name,year,month);}}} style={{padding:"4px 10px",borderRadius:5,background:"var(--border)",color:"#f59e0b",fontSize:10,whiteSpace:"nowrap"}}>Korrektur</button>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ));
+            })()}
           </div>}
           {adminTab==="export"&&<div style={{maxWidth:480}}>
             <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
