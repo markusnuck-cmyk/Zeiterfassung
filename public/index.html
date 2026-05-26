@@ -818,28 +818,61 @@ function App() {
           </div>
         </div>}
 
-        {session.isAdmin&&view==="history"&&<div style={{padding:24}}>
-          <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:18,color:"var(--text-strong)",marginBottom:20,letterSpacing:".05em"}}>VERLAUF ALLE</div>
-          {empNames.map(name=>{const all=empEntries(name);if(!all.length)return null;
-            const t=empTotals(name),vd=empVacDays(name);
-            const byDate={};all.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
-            return<div key={name} style={{marginBottom:28}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                <div><div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:15,color:"var(--text-strong)"}}>{name}</div>{vd>0&&<div style={{fontSize:10,color:"#06b6d4",marginTop:2}}>🏖 {vd} Ferientage</div>}</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{TYPES.filter(k=>t[k]>0).map(k=><span key={k} style={{fontSize:11,color:TYPE_COLORS[k]}}>{formatH(t[k])} <span style={{fontSize:9,color:TYPE_COLORS[k]+"60"}}>{TYPE_LABELS[k]}</span></span>)}</div>
+        {session.isAdmin&&view==="history"&&(()=>{
+          const now=new Date();
+          const [filterEmp,setFilterEmp]=useState("");
+          const [filterYear,setFilterYear]=useState(now.getFullYear());
+          const [filterMonth,setFilterMonth]=useState(now.getMonth()+1);
+          const MNAMES=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+          const prefix=`${filterYear}-${String(filterMonth).padStart(2,"0")}`;
+          const filteredNames=filterEmp?[filterEmp]:empNames;
+          return<div style={{padding:24}}>
+            <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:18,color:"var(--text-strong)",marginBottom:16,letterSpacing:".05em"}}>VERLAUF ALLE</div>
+            <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"flex-end",background:"var(--surface)",padding:"14px 16px",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div>
+                <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:6}}>Mitarbeiter</div>
+                <select className="sel" value={filterEmp} onChange={e=>setFilterEmp(e.target.value)} style={{minWidth:180}}>
+                  <option value="">Alle Mitarbeiter</option>
+                  {empNames.map(n=><option key={n} value={n}>{n}</option>)}
+                </select>
               </div>
-              {Object.keys(byDate).sort().reverse().map(date=>{const h=holOnDate(date);return<div key={date} style={{marginBottom:5}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",background:"var(--surface)",borderRadius:"7px 7px 0 0",borderBottom:"1px solid var(--bg)"}}>
-                  <span style={{fontSize:11,color:"var(--text-faint)"}}>{fDate(date)}</span>
-                  {h&&<span style={{fontSize:10,color:"#e879f9"}}>🎉 {h.name}</span>}
-                  <button className="btn" onClick={()=>openAdd(name,date)} style={{marginLeft:"auto",padding:"2px 9px",borderRadius:5,background:"#f59e0b18",color:"#f59e0b",fontSize:10,border:"1px solid #f59e0b28"}}>+ Tag</button>
+              <div>
+                <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:6}}>Monat</div>
+                <select className="sel" value={filterMonth} onChange={e=>setFilterMonth(Number(e.target.value))} style={{minWidth:130}}>
+                  {MNAMES.map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:6}}>Jahr</div>
+                <select className="sel" value={filterYear} onChange={e=>setFilterYear(Number(e.target.value))} style={{minWidth:90}}>
+                  {[filterYear-1,filterYear,filterYear+1].map(y=><option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <button className="btn" onClick={()=>{setFilterEmp("");setFilterMonth(now.getMonth()+1);setFilterYear(now.getFullYear());}} style={{padding:"8px 14px",borderRadius:7,background:"var(--border)",color:"var(--text-muted)",fontSize:11}}>Zurücksetzen</button>
+            </div>
+            {filteredNames.map(name=>{
+              const all=entries.filter(e=>e.employee===name&&e.date.startsWith(prefix));
+              if(!all.length)return null;
+              const t={};TYPES.forEach(k=>{t[k]=0;});all.forEach(e=>{t[e.type]=(t[e.type]||0)+e.hours;});
+              const byDate={};all.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
+              return<div key={name} style={{marginBottom:28}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div><div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:15,color:"var(--text-strong)"}}>{name}</div></div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{TYPES.filter(k=>t[k]>0).map(k=><span key={k} style={{fontSize:11,color:TYPE_COLORS[k]}}>{formatH(t[k])} <span style={{fontSize:9,color:TYPE_COLORS[k]+"60"}}>{TYPE_LABELS[k]}</span></span>)}</div>
                 </div>
-                <div style={{borderRadius:"0 0 7px 7px",overflow:"hidden"}}>{byDate[date].map(e=><EntryRow key={e.id} entry={e}/>)}</div>
-              </div>;})}
-            </div>;
-          })}
-          {!entries.length&&<div style={{textAlign:"center",color:"var(--text-ghost)",padding:"48px 0"}}>Noch keine Einträge</div>}
-        </div>}
+                {Object.keys(byDate).sort().reverse().map(date=>{const h=holOnDate(date);return<div key={date} style={{marginBottom:5}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",background:"var(--surface)",borderRadius:"7px 7px 0 0",borderBottom:"1px solid var(--bg)"}}>
+                    <span style={{fontSize:11,color:"var(--text-faint)"}}>{fDate(date)}</span>
+                    {h&&<span style={{fontSize:10,color:"#e879f9"}}>🎉 {h.name}</span>}
+                    <button className="btn" onClick={()=>openAdd(name,date)} style={{marginLeft:"auto",padding:"2px 9px",borderRadius:5,background:"#f59e0b18",color:"#f59e0b",fontSize:10,border:"1px solid #f59e0b28"}}>+ Tag</button>
+                  </div>
+                  <div style={{borderRadius:"0 0 7px 7px",overflow:"hidden"}}>{byDate[date].map(e=><EntryRow key={e.id} entry={e}/>)}</div>
+                </div>;})}
+              </div>;
+            })}
+            {filteredNames.every(name=>!entries.filter(e=>e.employee===name&&e.date.startsWith(prefix)).length)&&<div style={{textAlign:"center",color:"var(--text-ghost)",padding:"48px 0"}}>Keine Einträge für diesen Monat</div>}
+          </div>;
+        })()}
 
         {session.isAdmin&&view==="calendar"&&<div style={{padding:24}}>
           <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:18,color:"var(--text-strong)",marginBottom:20,letterSpacing:".05em"}}>KALENDER</div>
