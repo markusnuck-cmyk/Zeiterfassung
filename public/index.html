@@ -764,23 +764,33 @@ function App() {
           {(()=>{const vd=empVacDays(session.name);return vd>0&&<div style={{fontSize:12,color:"#06b6d4",marginBottom:14}}>🏖 {vd} Ferientag{vd!==1?"e":""} eingetragen</div>;})()}
           {(()=>{
             const now=new Date();
-            const prevMonth=now.getMonth()===0?12:now.getMonth();
-            const prevYear=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
-            const sig=getSignoff(session.name,prevYear,prevMonth);
             const emp=employees.find(e=>e.name===session.name);
             const MNAMES=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-            const needsReconfirm=sig&&sig.status==="signed"&&sig.admin_edited_at&&!sig.reconfirmed_at;
-            const isSigned=sig&&sig.status==="signed"&&!needsReconfirm;
-            return(<div style={{marginBottom:20,background:isSigned?"#f0fdf4":needsReconfirm?"#fffbeb":"var(--surface)",border:`1px solid ${isSigned?"#22c55e30":needsReconfirm?"#f59e0b40":"var(--border)"}`,borderRadius:12,padding:16}}>
-              <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,color:"var(--text-strong)",marginBottom:6}}>
-                {MNAMES[prevMonth-1]} {prevYear}
-                {isSigned&&<span style={{marginLeft:10,fontSize:11,color:"#22c55e",fontFamily:"monospace",fontWeight:400}}>✓ Unterzeichnet {sig.reconfirmed_at?new Date(sig.reconfirmed_at).toLocaleDateString("de-DE"):new Date(sig.signed_at).toLocaleDateString("de-DE")}</span>}
-                {needsReconfirm&&<span style={{marginLeft:10,fontSize:11,color:"#f59e0b",fontFamily:"monospace",fontWeight:400}}>⚠ Admin hat Änderungen vorgenommen – bitte nochmals bestätigen</span>}
-              </div>
-              {!sig&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={prevYear} month={prevMonth} onSign={signMonth}/>}
-              {needsReconfirm&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={prevYear} month={prevMonth} onSign={reconfirmMonth} label="Nochmals bestätigen"/>}
-              {isSigned&&<div style={{fontSize:11,color:"#16a34a"}}>Dieser Monat ist abgeschlossen und kann nicht mehr geändert werden.</div>}
-            </div>);
+            // Alle Monate von Jan 2026 bis Vormonat anzeigen
+            const months=[];
+            let y=2026, m=1;
+            const endYear=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+            const endMonth=now.getMonth()===0?12:now.getMonth();
+            while(y<endYear||(y===endYear&&m<=endMonth)){
+              months.push({year:y,month:m});
+              m++;if(m>12){m=1;y++;}
+            }
+            return<>{months.reverse().map(({year,month})=>{
+              const sig=getSignoff(session.name,year,month);
+              const needsReconfirm=sig&&sig.status==="signed"&&sig.admin_edited_at&&!sig.reconfirmed_at;
+              const isSigned=sig&&sig.status==="signed"&&!needsReconfirm;
+              return<div key={`${year}-${month}`} style={{marginBottom:12,background:isSigned?"#f0fdf4":needsReconfirm?"#fffbeb":"var(--surface)",border:`1px solid ${isSigned?"#22c55e30":needsReconfirm?"#f59e0b40":"var(--border)"}`,borderRadius:12,padding:16}}>
+                <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,color:"var(--text-strong)",marginBottom:6}}>
+                  {MNAMES[month-1]} {year}
+                  {isSigned&&<span style={{marginLeft:10,fontSize:11,color:"#22c55e",fontFamily:"monospace",fontWeight:400}}>✓ Unterzeichnet {sig.reconfirmed_at?new Date(sig.reconfirmed_at).toLocaleDateString("de-DE"):new Date(sig.signed_at).toLocaleDateString("de-DE")}</span>}
+                  {needsReconfirm&&<span style={{marginLeft:10,fontSize:11,color:"#f59e0b",fontFamily:"monospace",fontWeight:400}}>⚠ Admin hat Änderungen vorgenommen – bitte nochmals bestätigen</span>}
+                  {!sig&&<span style={{marginLeft:10,fontSize:11,color:"#ef4444",fontFamily:"monospace",fontWeight:400}}>Noch nicht unterzeichnet</span>}
+                </div>
+                {!sig&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={year} month={month} onSign={signMonth}/>}
+                {needsReconfirm&&<MonthSignButton name={session.name} pinHash={emp?.pinHash} year={year} month={month} onSign={reconfirmMonth} label="Nochmals bestätigen"/>}
+                {isSigned&&<div style={{fontSize:11,color:"#16a34a"}}>Dieser Monat ist abgeschlossen und kann nicht mehr geändert werden.</div>}
+              </div>;
+            })}</>;
           })()}
           {(()=>{const all=empEntries(session.name);if(!all.length)return<div style={{textAlign:"center",color:"var(--text-ghost)",padding:"40px 0"}}>Noch keine Einträge</div>;
             const byDate={};all.forEach(e=>{if(!byDate[e.date])byDate[e.date]=[];byDate[e.date].push(e);});
