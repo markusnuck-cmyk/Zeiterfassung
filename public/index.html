@@ -80,7 +80,7 @@ function hashPin(p){let h=0;for(let i=0;i<p.length;i++)h=(Math.imul(31,h)+p.char
 function daysInRange(from,to){const days=[];const d=new Date(from+"T12:00:00");const end=new Date(to+"T12:00:00");while(d<=end){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}return days;}
 
 function createClient(url, key) {
-  const headers = { "Content-Type":"application/json", "apikey":key, "Authorization":`Bearer ${key}` };
+  const headers = { "Content-Type":"application/json", "apikey":key, "Authorization":`Bearer ${key}`, "Accept-Profile":"public", "Prefer":"count=exact" };
   async function query(table, options={}) {
     let path = `${url}/rest/v1/${table}?`;
     if (options.select) path += `select=${options.select}&`;
@@ -459,6 +459,7 @@ function App() {
   const [editEmpVal, setEditEmpVal] = useState("");
   const [expandedEmp, setExpandedEmp] = useState(null);
   const [verlaufEmp, setVerlaufEmp] = useState("");
+  const [saveToast, setSaveToast] = useState(false);
   const [verlaufMonth, setVerlaufMonth] = useState(new Date().getMonth()+1);
   const [verlaufYear, setVerlaufYear] = useState(new Date().getFullYear());
   const [signoffs, setSignoffs] = useState([]);
@@ -530,6 +531,8 @@ function App() {
         }
       }
       setModalData(null);
+      setSaveToast(true);
+      setTimeout(()=>setSaveToast(false),2500);
     }catch(e){return{error:"Fehler: "+e.message};}
   }
 
@@ -666,6 +669,7 @@ function App() {
       <style>{css}</style>
       {modalData&&<EntryModal onClose={()=>setModalData(null)} onSave={handleSave} empNames={empNames} locSuggestions={[...new Set(entries.filter(e=>e.employee===modalData.employee&&e.location).map(e=>e.location))].sort()} isAdmin={session?.isAdmin} initialData={modalData}/>}
       {loading&&<div style={{position:"fixed",inset:0,background:"rgba(244,245,247,0.8)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:"#22c55e",fontSize:13,display:"flex",alignItems:"center",gap:10}}><span className="spin">⟳</span> Laden…</div></div>}
+      {saveToast&&<div style={{position:"fixed",bottom:32,left:"50%",transform:"translateX(-50%)",background:"#22c55e",color:"#000",fontWeight:700,fontSize:14,padding:"12px 28px",borderRadius:12,zIndex:300,boxShadow:"0 4px 20px rgba(0,0,0,0.15)",fontFamily:"inherit"}}>✓ Gespeichert</div>}
       {syncErr&&<div style={{background:"#ef444420",borderBottom:"1px solid #ef444440",padding:"8px 24px",fontSize:11,color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"space-between"}}>{syncErr}<button className="btn" onClick={loadData} style={{color:"#ef4444",fontSize:11}}>Erneut versuchen</button></div>}
 
       {!session&&(
