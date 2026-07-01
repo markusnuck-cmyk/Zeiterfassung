@@ -86,9 +86,12 @@ function createClient(url, key) {
     if (options.select) path += `select=${options.select}&`;
     if (options.filter) path += `${options.filter}&`;
     if (options.order)  path += `order=${options.order}&`;
-    const res = await fetch(path, { headers: {...headers, "Prefer":"return=representation", "Range-Unit":"items", "Range":"0-9999"} });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    const fetchHeaders = {...headers, "Prefer":"return=representation", "Range-Unit":"items", "Range":"0-9999"};
+    const res = await fetch(path, { headers: fetchHeaders });
+    if (res.status === 206 || res.ok) {
+      return res.json();
+    }
+    throw new Error(await res.text());
   }
   async function insert(table, data) {
     const res = await fetch(`${url}/rest/v1/${table}`, {
@@ -469,7 +472,7 @@ function App() {
     try{
       const [emps,ents,sigs]=await Promise.all([
         db.query("employees",{select:"*",order:"name.asc"}),
-        db.query("time_entries",{select:"*",order:"date.desc,created_at.desc",filter:"limit=5000"}),
+        db.query("time_entries",{select:"*",order:"date.desc,created_at.desc"}),
         db.query("month_signoffs",{select:"*"})
       ]);
       setEmployees(emps.map(e=>({name:e.name,pinHash:e.pin_hash,id:e.id})));
