@@ -86,12 +86,10 @@ function createClient(url, key) {
     if (options.select) path += `select=${options.select}&`;
     if (options.filter) path += `${options.filter}&`;
     if (options.order)  path += `order=${options.order}&`;
-    const fetchHeaders = {...headers, "Prefer":"return=representation", "Range-Unit":"items", "Range":"0-9999"};
-    const res = await fetch(path, { headers: fetchHeaders });
-    if (res.status === 206 || res.ok) {
-      return res.json();
-    }
-    throw new Error(await res.text());
+    path += `limit=10000&offset=0&`;
+    const res = await fetch(path, { headers: {...headers, "Prefer":"return=representation"} });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
   }
   async function insert(table, data) {
     const res = await fetch(`${url}/rest/v1/${table}`, {
