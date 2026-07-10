@@ -412,7 +412,7 @@ function MonatsblattView({entries, employees}) {
                 {tdNum(vacationMs,"#0891b2")}
                 {tdNum(holidayMs,"#a21caf")}
                 {tdNum(otherMs,"#7c3aed")}
-                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:expenseNotes?"#d97706":"var(--text-faint)"}}>{expenseNotes||""}</td>
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:d.expenseNotes?"#d97706":"var(--text-faint)"}}>{d.expenseNotes||""}</td>
                 {tdTotal(totalMs)}
                 <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:"var(--text-sec)"}}>{locations}</td>
               </tr>
