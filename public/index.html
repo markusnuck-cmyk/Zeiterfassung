@@ -24,12 +24,12 @@
 
 const { useState, useEffect, useRef, useCallback } = React;
 
-const TYPES       = ["work","travel","sick","accident","other","vacation","holiday"];
-const TYPE_LABELS = { work:"Arbeitszeit", travel:"Reisezeit", sick:"Krank", accident:"Unfall", other:"Sonstiges", vacation:"Ferien", holiday:"Feiertag" };
-const TYPE_COLORS = { work:"#22c55e", travel:"#3b82f6", sick:"#f87171", accident:"#fb923c", other:"#a78bfa", vacation:"#06b6d4", holiday:"#e879f9" };
-const TYPE_ICONS  = { work:"⚒", travel:"✈", sick:"🤒", accident:"⚠", other:"📝", vacation:"🏖", holiday:"🎉" };
+const TYPES       = ["work","travel","sick","accident","other","vacation","holiday","expense"];
+const TYPE_LABELS = { work:"Arbeitszeit", travel:"Reisezeit", sick:"Krank", accident:"Unfall", other:"Sonstiges", vacation:"Ferien", holiday:"Feiertag", expense:"Spesen" };
+const TYPE_COLORS = { work:"#22c55e", travel:"#3b82f6", sick:"#f87171", accident:"#fb923c", other:"#a78bfa", vacation:"#06b6d4", holiday:"#e879f9", expense:"#f59e0b" };
+const TYPE_ICONS  = { work:"⚒", travel:"✈", sick:"🤒", accident:"⚠", other:"📝", vacation:"🏖", holiday:"🎉", expense:"🧾" };
 const NEEDS_LOC   = new Set(["work","travel"]);
-const NEEDS_NOTE  = new Set(["other"]);
+const NEEDS_NOTE  = new Set(["other","expense"]);
 const ADMIN_PIN   = "4774";
 
 function getSwissHolidays(year) {
@@ -204,8 +204,8 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
             </button>
           ))}
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:20}}>
-          {["accident","other","vacation","holiday"].map(t=>(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5,marginBottom:20}}>
+          {["accident","other","vacation","holiday","expense"].map(t=>(
             <button key={t} className="type-btn" onClick={()=>setType(t)} style={{background:type===t?TYPE_COLORS[t]+"28":"var(--bg)",color:type===t?TYPE_COLORS[t]:"#888",border:`1px solid ${type===t?TYPE_COLORS[t]+"60":"var(--border)"}`}}>
               <div style={{fontSize:14,marginBottom:2}}>{TYPE_ICONS[t]}</div><div style={{fontSize:10}}>{TYPE_LABELS[t]}</div>
             </button>
@@ -245,8 +245,8 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
           {locSugg.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>{locSugg.map(l=>{const lc=locColor(l);return<div key={l} className="sug" onClick={()=>setLocation(l)} style={{color:lc,background:lc+"15",borderColor:lc+"30"}}>{l}</div>;})}</div>}
         </div>}
         {NEEDS_NOTE.has(type)&&<div style={{marginBottom:16}}>
-          <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Was ist es?</div>
-          <input className="inp" placeholder="z.B. Arzttermin …" value={note} onChange={e=>setNote(e.target.value)} autoComplete="off" autoCorrect="off" autoCapitalize="off"/>
+          <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>{type==="expense"?"Beschreibung":"Was ist es?"}</div>
+          <input className="inp" placeholder={type==="expense"?"z.B. Kilometergeld, Mittagessen …":"z.B. Arzttermin …"} value={note} onChange={e=>setNote(e.target.value)} autoComplete="off" autoCorrect="off" autoCapitalize="off"/>
         </div>}
         {error&&<div style={{color:"#ef4444",fontSize:11,marginBottom:12}}>{error}</div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -309,6 +309,7 @@ function MonatsblattView({entries, employees}) {
     const vacationMs=de.filter(e=>e.type==="vacation").reduce((s,e)=>s+e.hours,0);
     const holidayMs=de.filter(e=>e.type==="holiday").reduce((s,e)=>s+e.hours,0);
     const otherMs=de.filter(e=>e.type==="other").reduce((s,e)=>s+e.hours,0);
+    const expenseNotes=[...new Set(de.filter(e=>e.type==="expense").map(e=>e.note||"Spesen"))].join(", ");
     const totalMs=workMs+travelMs+sickMs+accidentMs+vacationMs+holidayMs+otherMs;
     const wd=new Date(d+"T12:00:00").getDay();
     const isWeekend=wd===0||wd===6;
@@ -378,6 +379,7 @@ function MonatsblattView({entries, employees}) {
             <th style={thStyle("#0891b2")}>Ferien</th>
             <th style={thStyle("#a21caf")}>Feiertag</th>
             <th style={thStyle("#7c3aed")}>Sonstiges</th>
+            <th style={thStyle("#f59e0b")}>Spesen</th>
             <th style={thStyle("var(--text-strong)")}>Total</th>
             <th style={thStyleL()}>Arbeitsstelle</th>
           </tr>
@@ -399,6 +401,7 @@ function MonatsblattView({entries, employees}) {
                 {tdNum(vacationMs,"#0891b2")}
                 {tdNum(holidayMs,"#a21caf")}
                 {tdNum(otherMs,"#7c3aed")}
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:expenseNotes?"#d97706":"var(--text-faint)"}}>{expenseNotes||""}</td>
                 {tdTotal(totalMs)}
                 <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:"var(--text-sec)"}}>{locations}</td>
               </tr>
@@ -415,6 +418,7 @@ function MonatsblattView({entries, employees}) {
             {tfNum(totalVacation,"#0891b2")}
             {tfNum(totalHoliday,"#a21caf")}
             {tfNum(totalOther,"#7c3aed")}
+            <td style={{padding:"6px 6px",border:"1px solid var(--border)",fontSize:10,color:"var(--text-faint)",borderTop:"2px solid #999",background:"#f5f6f8"}}></td>
             <td style={{padding:"6px 6px",border:"1px solid var(--border)",textAlign:"right",fontSize:12,color:"var(--text-strong)",fontWeight:700,borderTop:"2px solid #999",background:"#f5f6f8"}}>{formatHDec(totalAll)}</td>
             <td style={{padding:"6px 6px",border:"1px solid var(--border)",borderTop:"2px solid #999",background:"#f5f6f8"}}></td>
           </tr>
