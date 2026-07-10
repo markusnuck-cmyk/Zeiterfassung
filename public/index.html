@@ -396,7 +396,7 @@ function MonatsblattView({entries, employees}) {
           </tr>
         </thead>
         <tbody>
-          {days.map(({d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,totalMs,isWeekend,holiday,locations,hasEntries})=>{
+          {days.map(({d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,expenseNotes,totalMs,isWeekend,holiday,locations,hasEntries})=>{
             const rowBg=holiday?"#fdf5ff":isWeekend?"#f7f8fa":hasEntries?"#fff":"#fafbfc";
             const textCol=isWeekend&&!hasEntries?"#bbb":"var(--text)";
             return(
@@ -412,7 +412,7 @@ function MonatsblattView({entries, employees}) {
                 {tdNum(vacationMs,"#0891b2")}
                 {tdNum(holidayMs,"#a21caf")}
                 {tdNum(otherMs,"#7c3aed")}
-                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:d.expenseNotes?"#d97706":"var(--text-faint)"}}>{d.expenseNotes||""}</td>
+                <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:expenseNotes?"#d97706":"var(--text-faint)"}}>{expenseNotes||""}</td>
                 {tdTotal(totalMs)}
                 <td style={{padding:"4px 6px",border:"1px solid var(--border)",fontSize:10,color:"var(--text-sec)"}}>{locations}</td>
               </tr>
