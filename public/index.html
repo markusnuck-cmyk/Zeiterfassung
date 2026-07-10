@@ -327,7 +327,7 @@ function MonatsblattView({entries, employees}) {
     const holiday=HOLIDAYS.find(h=>h.date===d);
     const locations=[...new Set(de.filter(e=>e.location).map(e=>e.location))].join(", ");
     const hasEntries=de.length>0;
-    return{d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,totalMs,isWeekend,holiday,locations,hasEntries};
+    return{d,workMs,travelMs,sickMs,accidentMs,vacationMs,holidayMs,otherMs,expenseNotes,totalMs,isWeekend,holiday,locations,hasEntries};
   });
 
   const totalWork=days.reduce((s,d)=>s+d.workMs,0);
