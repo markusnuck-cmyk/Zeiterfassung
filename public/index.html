@@ -177,10 +177,17 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
   const hoursRef = useRef();
   useEffect(() => { setTimeout(() => hoursRef.current?.focus(), 80); }, []);
   const upHols = HOLIDAYS.filter(h => h.date >= today()).slice(0, 8);
-  const isVac = type === "vacation", isHol = type === "holiday";
+  const isVac = type === "vacation", isHol = type === "holiday", isExp = type === "expense";
   const locSugg = location.length === 0 ? (locSuggestions||[]).slice(0,5) : (locSuggestions||[]).filter(l=>l.toLowerCase().includes(location.toLowerCase())&&l.toLowerCase()!==location.toLowerCase()).slice(0,4);
   function holOnDate(d){return HOLIDAYS.find(h=>h.date===d);}
   async function handleSave(){
+    if(type==="expense"){
+      if(!note.trim()){setError("Bitte Beschreibung eingeben.");return;}
+      setSaving(true);
+      const result=await onSave({type,hours:"0",date,dateTo,location:"",note,holiday:"",employee});
+      if(result?.error){setError(result.error);setSaving(false);}
+      return;
+    }
     const h=parseFloat(hours);
     if(!hours||isNaN(h)||h<=0){setError("Bitte gültige Stundenzahl eingeben.");return;}
     if(h>24){setError("Mehr als 24h nicht möglich.");return;}
@@ -234,7 +241,7 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
           <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:6}}>Stunden</div>
           <input ref={hoursRef} className="inp" type="text" inputMode="decimal" placeholder="z.B. 8" value={hours} onChange={e=>setHours(e.target.value.replace(/[^0-9.]/g,""))} style={{fontSize:16}}/>
         </div>}
-        {!isVac&&!isHol&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        {!isVac&&!isHol&&!isExp&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
           <div><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Datum</div><input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/></div>
           <div><div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Stunden</div>
             <input ref={hoursRef} className="inp" type="text" inputMode="decimal" placeholder="z.B. 8 oder 7.5" value={hours} onChange={e=>setHours(e.target.value.replace(/[^0-9.]/g,""))} style={{fontSize:16}}/></div>
@@ -243,6 +250,10 @@ const EntryModal = React.memo(function EntryModal({ onClose, onSave, empNames, l
           <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Arbeitsstelle</div>
           <input className="inp" placeholder="z.B. Filiale West …" value={location} onChange={e=>setLocation(e.target.value)} autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"/>
           {locSugg.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>{locSugg.map(l=>{const lc=locColor(l);return<div key={l} className="sug" onClick={()=>setLocation(l)} style={{color:lc,background:lc+"15",borderColor:lc+"30"}}>{l}</div>;})}</div>}
+        </div>}
+        {isExp&&<div style={{marginBottom:16}}>
+          <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>Datum</div>
+          <input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
         </div>}
         {NEEDS_NOTE.has(type)&&<div style={{marginBottom:16}}>
           <div style={{fontSize:10,color:"var(--text-faint)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:7}}>{type==="expense"?"Beschreibung":"Was ist es?"}</div>
