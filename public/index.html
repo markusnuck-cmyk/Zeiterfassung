@@ -528,7 +528,9 @@ function App() {
     try{
       const isAdm=session.isAdmin&&employee!==session.name;
       if(type==="vacation"&&!modalData.editId){
-        const days=daysInRange(date,dateTo);
+        const allDays=daysInRange(date,dateTo);
+        if(!allDays.length)return{error:"Ungültiger Bereich."};
+        const days=allDays.length>1?allDays.filter(d=>{const wd=new Date(d+"T12:00:00").getDay();return wd!==0&&wd!==6;}):allDays;
         if(!days.length)return{error:"Ungültiger Bereich."};
         const rows=days.map(d=>({employee,date:d,type:"vacation",hours_ms:hToMs(h),location:null,note:null,holiday_name:null,edited_by:isAdm?"admin":null}));
         const inserted=await db.insert("time_entries",rows);
